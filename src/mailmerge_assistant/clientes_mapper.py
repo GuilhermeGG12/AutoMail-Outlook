@@ -9,7 +9,6 @@ from mailmerge_assistant.validators import (
     parse_brl_currency,
     parse_email_list,
     stringify_cell,
-    validate_attachment_paths,
     validate_required_value,
 )
 
@@ -47,10 +46,6 @@ def map_row_to_draft(row: SpreadsheetRow) -> EmailDraft:
     if error or valor is None:
         raise ValueError(error or 'o campo "Valor fev26" é inválido.')
 
-    attachments, error = validate_attachment_paths(values.get("ArquivoAnexo"))
-    if error:
-        raise ValueError(error)
-
     template_values = _template_values(values, valor)
     try:
         subject = render_template(EMAIL_SUBJECT_TEMPLATE, template_values).strip()
@@ -71,7 +66,7 @@ def map_row_to_draft(row: SpreadsheetRow) -> EmailDraft:
         body=body,
         valor=valor,
         dia_pagamento=template_values["Dia de Pagamento"],
-        attachments=attachments,
+        attachments=[],
     )
 
 

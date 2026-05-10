@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from zipfile import BadZipFile
 from typing import Any
+from zipfile import BadZipFile
 
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException

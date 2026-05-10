@@ -28,8 +28,6 @@ class OutlookClient:
             mail.Subject = draft.subject
             mail.BodyFormat = 2  # olFormatHTML
             mail.HTMLBody = plain_text_to_html_email(draft.body)
-            for attachment in draft.attachments:
-                mail.Attachments.Add(str(attachment))
             mail.Save()
         except Exception as exc:
             raise OutlookDraftError(

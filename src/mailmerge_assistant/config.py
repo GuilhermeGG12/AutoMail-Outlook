@@ -13,7 +13,6 @@ REQUIRED_COLUMNS = [
     "Valor fev26",
     "Dia de Pagamento",
     "PIX",
-    "ArquivoAnexo",
 ]
 
 OPTIONAL_COLUMNS = [
@@ -25,6 +24,7 @@ OPTIONAL_COLUMNS = [
     "Dif",
     "Extenso",
     "Vencimento Certificado Digital",
+    "ArquivoAnexo",
 ]
 
 EMAIL_SUBJECT_TEMPLATE = "Honorários contábeis - {RAZÃO SOCIAL}"

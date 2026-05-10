@@ -33,6 +33,18 @@ def test_map_row_combines_emails_and_generates_subject_body(tmp_path: Path) -> N
     assert result.draft.subject == "Honorários contábeis - A F SERVICOS DE TRANSPORTES LTDA"
     assert "R$ 390,50" in result.draft.body
     assert "Márcio" in result.draft.body
+    assert result.draft.attachments == []
+
+
+def test_map_row_does_not_require_attachment_column(tmp_path: Path) -> None:
+    row = _row(tmp_path)
+    row.values.pop("ArquivoAnexo")
+
+    result = map_row_to_validation_result(row)
+
+    assert result.is_valid
+    assert result.draft is not None
+    assert result.draft.attachments == []
 
 
 def test_map_row_blocks_excel_error_in_required_field(tmp_path: Path) -> None:
