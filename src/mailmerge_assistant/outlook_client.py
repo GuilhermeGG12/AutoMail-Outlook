@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 from mailmerge_assistant.models import EmailDraft
 
 
@@ -24,7 +26,8 @@ class OutlookClient:
             mail = outlook.CreateItem(0)
             mail.To = draft.to
             mail.Subject = draft.subject
-            mail.Body = draft.body
+            mail.BodyFormat = 2  # olFormatHTML
+            mail.HTMLBody = plain_text_to_html_email(draft.body)
             for attachment in draft.attachments:
                 mail.Attachments.Add(str(attachment))
             mail.Save()
@@ -32,3 +35,33 @@ class OutlookClient:
             raise OutlookDraftError(
                 f"Não foi possível criar o rascunho da linha {draft.row_number} no Outlook."
             ) from exc
+
+
+def plain_text_to_html_email(text: str) -> str:
+    blocks = [block.strip() for block in text.replace("\r\n", "\n").split("\n\n") if block.strip()]
+    rendered_blocks = []
+    for block in blocks:
+        lines = [escape(line.strip()) for line in block.split("\n")]
+        rendered_blocks.append(f"<p>{'<br>'.join(lines)}</p>")
+
+    body = "\n".join(rendered_blocks)
+    return f"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      color: #1f1f1f;
+      line-height: 1.35;
+    }}
+    p {{
+      margin: 0 0 12px 0;
+    }}
+  </style>
+</head>
+<body>
+{body}
+</body>
+</html>"""
