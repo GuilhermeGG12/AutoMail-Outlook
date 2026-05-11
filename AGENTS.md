@@ -1186,3 +1186,200 @@ pip install -r requirements.txt
 
 pip install -r requirements-dev.txt
 
+```
+
+\## V2 roadmap
+
+V1 remains draft-only. Do not change the V1 draft flow into automatic sending without explicitly implementing the V2 safety requirements below.
+
+\### V2 goals
+
+1\. Package the app as a Windows executable for the user's father to run without PowerShell.
+
+2\. Add an in-app email preview so formatting, bold text, logo, values, recipients, and PIX can be reviewed before creating drafts or sending.
+
+3\. Add optional automatic Outlook sending with strong safeguards.
+
+\### Executable packaging
+
+Use PyInstaller through:
+
+```powershell
+
+.\scripts\build_exe.ps1
+
+```
+
+The packaged app must include:
+
+\- Python package code from `src/mailmerge_assistant`
+
+\- image assets such as `src/mailmerge_assistant/assets/company_logo.jpeg`
+
+\- any files required for HTML email rendering
+
+\- no sample spreadsheet data unless explicitly needed for testing
+
+The executable must be tested on Windows with Outlook desktop installed.
+
+\### Email preview
+
+Add a visible preview workflow before creating drafts or sending emails.
+
+The preview should show:
+
+\- rendered HTML body
+
+\- bold text
+
+\- company logo/footer
+
+\- recipient list
+
+\- subject
+
+\- value
+
+\- payment day
+
+\- PIX
+
+The preview should allow reviewing at least the first valid row, and ideally navigating between valid rows.
+
+\### Automatic sending rules
+
+Automatic sending is allowed only as a V2 feature.
+
+V2 may use Outlook COM `mail.Send()`, but only inside Outlook-specific code. Keep Outlook sending isolated from GUI code.
+
+Do not use SMTP, Microsoft Graph, cloud services, OAuth, credentials storage, or Outlook password prompts.
+
+Automatic sending must never happen:
+
+\- when the app starts
+
+\- immediately after selecting a spreadsheet
+
+\- immediately after validation
+
+\- while test mode is accidentally misconfigured
+
+\- if there are invalid rows
+
+\- if any required field is empty
+
+\- if any recipient, subject, or body is invalid
+
+\### Sending safeguards
+
+Before real sending, the app must require all of the following:
+
+\- validation was run in the current session
+
+\- all rows are valid, or the user explicitly chooses to send only valid rows after seeing the invalid-row count
+
+\- a clear count of emails to be sent
+
+\- the Outlook sender account shown to the user when available
+
+\- a confirmation dialog stating that real emails will be sent
+
+\- a strong confirmation phrase such as typing `ENVIAR`
+
+\- a final confirmation before sending
+
+Recommended confirmation text:
+
+`Serão enviados X e-mails reais pelo Outlook. Digite ENVIAR para continuar.`
+
+\### Test mode sending
+
+When test mode is enabled:
+
+\- automatic sending must send only to the single test email address
+
+\- original recipients must not be placed in `To`, `CC`, or `BCC`
+
+\- the subject must keep the `[TESTE]` prefix
+
+\- the body must include the original recipient information
+
+\### Sending behavior
+
+For each valid email:
+
+\- create an Outlook MailItem
+
+\- set `To`, `Subject`, and `HTMLBody`
+
+\- do not attach the contract PDF unless a future requirement explicitly re-enables attachments
+
+\- call `mail.Send()` only after all safeguards pass
+
+\- optionally delay 1-2 seconds between sends
+
+\- stop or pause if repeated Outlook errors occur
+
+\### Reports for V2
+
+Reports must include both draft and send outcomes.
+
+Add statuses:
+
+\- `ENVIADO`
+
+\- `FALHA_ENVIO`
+
+Keep existing statuses:
+
+\- `OK`
+
+\- `ERRO`
+
+\- `RASCUNHO_CRIADO`
+
+\- `IGNORADO`
+
+For sent emails, the report must include:
+
+\- spreadsheet row number
+
+\- recipient list
+
+\- subject
+
+\- value
+
+\- payment day
+
+\- PIX when useful
+
+\- send timestamp
+
+\- success or friendly error message
+
+\### Tests for V2
+
+Outlook must remain mocked in automated tests.
+
+Add tests for:
+
+\- executable asset inclusion where practical
+
+\- HTML preview generation
+
+\- bold text rendering
+
+\- logo rendering
+
+\- automatic-send happy path using a mocked Outlook client
+
+\- `mail.Send()` not called when rows are invalid
+
+\- `mail.Send()` not called without strong confirmation
+
+\- test mode sending only to the test recipient
+
+\- report statuses `ENVIADO` and `FALHA_ENVIO`
+
+\- draft-only behavior remains unchanged for V1 flow
