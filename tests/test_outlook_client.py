@@ -16,3 +16,9 @@ def test_plain_text_to_html_email_can_render_logo() -> None:
 
     assert '<p class="logo"><img src="cid:logo&amp;teste"' in html
     assert "ContabiliZuum.com Contabilidade Digital" in html
+
+
+def test_plain_text_to_html_email_renders_strong_markup_safely() -> None:
+    html = plain_text_to_html_email("Olá **João <teste>**")
+
+    assert "<p>Olá <strong>João &lt;teste&gt;</strong></p>" in html

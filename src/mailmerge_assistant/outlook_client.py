@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from html import escape
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from mailmerge_assistant.models import EmailDraft
 
 LOGO_CONTENT_ID = "mailmerge-assistant-company-logo"
 LOGO_PATH = Path(__file__).with_name("assets") / "company_logo.jpeg"
+STRONG_MARKUP_RE = re.compile(r"\*\*(.+?)\*\*")
 
 
 class OutlookDraftError(RuntimeError):
@@ -54,7 +56,7 @@ def plain_text_to_html_email(text: str, *, logo_src: str | None = None) -> str:
     blocks = [block.strip() for block in text.replace("\r\n", "\n").split("\n\n") if block.strip()]
     rendered_blocks = []
     for block in blocks:
-        lines = [escape(line.strip()) for line in block.split("\n")]
+        lines = [_render_inline_markup(line.strip()) for line in block.split("\n")]
         rendered_blocks.append(f"<p>{'<br>'.join(lines)}</p>")
 
     if logo_src is not None:
@@ -94,3 +96,14 @@ def plain_text_to_html_email(text: str, *, logo_src: str | None = None) -> str:
 {body}
 </body>
 </html>"""
+
+
+def _render_inline_markup(text: str) -> str:
+    pieces: list[str] = []
+    last_index = 0
+    for match in STRONG_MARKUP_RE.finditer(text):
+        pieces.append(escape(text[last_index : match.start()]))
+        pieces.append(f"<strong>{escape(match.group(1))}</strong>")
+        last_index = match.end()
+    pieces.append(escape(text[last_index:]))
+    return "".join(pieces)
