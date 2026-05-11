@@ -9,3 +9,10 @@ def test_plain_text_to_html_email_preserves_paragraphs_and_escapes_html() -> Non
     assert "<p>Olá João,<br>Linha 2</p>" in html
     assert "<p>PIX &lt;teste&gt;&amp;valor</p>" in html
     assert "font-family: Calibri" in html
+
+
+def test_plain_text_to_html_email_can_render_logo() -> None:
+    html = plain_text_to_html_email("Corpo", logo_src="cid:logo&teste")
+
+    assert '<p class="logo"><img src="cid:logo&amp;teste"' in html
+    assert "ContabiliZuum.com Contabilidade Digital" in html
