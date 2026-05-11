@@ -31,6 +31,8 @@ class OutlookClient:
         try:
             mail = self._create_mail_item(draft)
             mail.Save()
+        except OutlookDraftError:
+            raise
         except Exception as exc:
             raise OutlookDraftError(
                 f"Não foi possível criar o rascunho da linha {draft.row_number} no Outlook."
@@ -40,6 +42,8 @@ class OutlookClient:
         try:
             mail = self._create_mail_item(draft)
             mail.Send()
+        except OutlookDraftError:
+            raise
         except Exception as exc:
             raise OutlookDraftError(
                 f"Não foi possível enviar o e-mail da linha {draft.row_number} pelo Outlook."
@@ -64,7 +68,13 @@ class OutlookClient:
         outlook = self._win32_client.Dispatch("Outlook.Application")
         mail = outlook.CreateItem(0)
         mail.To = draft.to
+        if not mail.Recipients.ResolveAll():
+            raise OutlookDraftError(
+                f'Não foi possível validar o destinatário "{draft.to}" no Outlook.'
+            )
         mail.Subject = draft.subject
+        mail.Importance = 2  # olImportanceHigh
+        mail.ReadReceiptRequested = True
         mail.BodyFormat = 2  # olFormatHTML
         logo_src = f"cid:{LOGO_CONTENT_ID}" if LOGO_PATH.exists() else None
         mail.HTMLBody = plain_text_to_html_email(draft.body, logo_src=logo_src)
