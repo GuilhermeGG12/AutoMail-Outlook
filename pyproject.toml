@@ -44,7 +44,7 @@ disallow_untyped_defs = true
 exclude = ["build", "dist"]
 
 [[tool.mypy.overrides]]
-module = ["customtkinter", "win32com", "win32com.client", "openpyxl"]
+module = ["customtkinter", "win32com", "win32com.client", "openpyxl", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -2,7 +2,7 @@
 
 Aplicativo desktop Windows para validar uma planilha Excel de clientes contábeis e criar rascunhos personalizados no Microsoft Outlook.
 
-A V1 cria somente rascunhos. Ela não envia e-mails automaticamente, não usa SMTP, não usa Microsoft Graph e não solicita credenciais.
+O app usa Outlook desktop via COM. Ele não usa SMTP, não usa Microsoft Graph e não solicita credenciais.
 
 ## Instalação
 
@@ -35,11 +35,19 @@ mypy src
 .\scripts\build_exe.ps1
 ```
 
+Se a execução de scripts estiver bloqueada:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
+```
+
 ## Fluxo
 
 1. Selecione um arquivo `.xlsx`.
 2. Valide a aba `Clientes`.
 3. Revise linhas válidas e inválidas.
 4. Opcionalmente ative o modo de teste.
-5. Crie rascunhos no Outlook.
-6. Consulte o relatório gerado em `reports/`.
+5. Use `Visualizar e-mail` para conferir formatação, negritos e logo.
+6. Crie rascunhos no Outlook ou envie e-mails pelo Outlook.
+7. Para envio automático, confirme digitando `ENVIAR`.
+8. Consulte o relatório gerado em `reports/`.

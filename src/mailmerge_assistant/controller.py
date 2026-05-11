@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Protocol, cast
 
 from mailmerge_assistant.clientes_mapper import apply_test_mode, map_row_to_validation_result
+from mailmerge_assistant.config import REPORTS_DIR
 from mailmerge_assistant.excel_reader import read_clientes_workbook
 from mailmerge_assistant.models import (
     DraftCreationResult,
     ReportRow,
     ReportStatus,
     RowValidationResult,
+    SendEmailsResult,
     ValidationRunResult,
 )
-from mailmerge_assistant.outlook_client import OutlookClient
+from mailmerge_assistant.outlook_client import LOGO_PATH, OutlookClient, plain_text_to_html_email
 from mailmerge_assistant.report_writer import write_report
 from mailmerge_assistant.validators import parse_email_list
+
+SEND_CONFIRMATION_PHRASE = "ENVIAR"
 
 
 class DraftClient(Protocol):
     def create_draft(self, draft: object) -> None: ...
+    def send_email(self, draft: object) -> None: ...
+    def refresh_drafts_folder(self, *, max_items: int = 60) -> None: ...
 
 
 class MailMergeController:
@@ -78,12 +85,97 @@ class MailMergeController:
             )
             updated_results.append(created_result)
             report_rows.append(_validation_to_report_row(created_result, status="RASCUNHO_CRIADO"))
+        if created_count:
+            client.refresh_drafts_folder(max_items=max(60, created_count))
         report_path = write_report(report_rows)
         return DraftCreationResult(
             row_results=updated_results,
             created_count=created_count,
             report_path=report_path,
         )
+
+    def send_outlook_emails(
+        self,
+        *,
+        confirmation_phrase: str,
+        test_mode: bool = False,
+        test_email: str = "",
+    ) -> SendEmailsResult:
+        if confirmation_phrase.strip().upper() != SEND_CONFIRMATION_PHRASE:
+            raise ValueError('Digite "ENVIAR" para confirmar o envio real.')
+        if not self._last_validation:
+            raise ValueError("Valide a planilha antes de enviar e-mails.")
+
+        invalid_count = sum(1 for row in self._last_validation if not row.is_valid)
+        if invalid_count:
+            raise ValueError(
+                f"Existem {invalid_count} linhas inválidas. Corrija a planilha antes de enviar."
+            )
+
+        if test_mode:
+            test_email = _validated_single_test_email(test_email)
+
+        client = self._outlook_client or OutlookClient()
+        sent_count = 0
+        updated_results: list[RowValidationResult] = []
+        report_rows: list[ReportRow] = []
+        for result in self._last_validation:
+            if result.draft is None:
+                updated_results.append(result)
+                report_rows.append(_validation_to_report_row(result, status="IGNORADO"))
+                continue
+            draft = apply_test_mode(result.draft, test_email) if test_mode else result.draft
+            try:
+                client.send_email(draft)
+            except Exception as exc:
+                error_result = RowValidationResult(
+                    row=result.row,
+                    is_valid=False,
+                    message=str(exc),
+                    draft=draft,
+                )
+                updated_results.append(error_result)
+                report_rows.append(_validation_to_report_row(error_result, status="FALHA_ENVIO"))
+                continue
+            sent_count += 1
+            sent_result = RowValidationResult(
+                row=result.row,
+                is_valid=True,
+                message="E-mail enviado pelo Outlook.",
+                draft=draft,
+            )
+            updated_results.append(sent_result)
+            report_rows.append(_validation_to_report_row(sent_result, status="ENVIADO"))
+
+        report_path = write_report(report_rows)
+        return SendEmailsResult(
+            row_results=updated_results,
+            sent_count=sent_count,
+            report_path=report_path,
+        )
+
+    def write_preview_html(
+        self,
+        *,
+        test_mode: bool = False,
+        test_email: str = "",
+    ) -> Path:
+        if not self._last_validation:
+            raise ValueError("Valide a planilha antes de visualizar o e-mail.")
+        if test_mode:
+            test_email = _validated_single_test_email(test_email)
+
+        for result in self._last_validation:
+            if result.is_valid and result.draft is not None:
+                draft = apply_test_mode(result.draft, test_email) if test_mode else result.draft
+                logo_src = _logo_data_uri() if LOGO_PATH.exists() else None
+                html = plain_text_to_html_email(draft.body, logo_src=logo_src)
+                preview_path = REPORTS_DIR / "email_preview.html"
+                preview_path.parent.mkdir(parents=True, exist_ok=True)
+                preview_path.write_text(html, encoding="utf-8")
+                return preview_path
+
+        raise ValueError("Não há linhas válidas para visualizar.")
 
     @property
     def last_validation(self) -> list[RowValidationResult]:
@@ -117,3 +209,15 @@ def _validation_to_report_row(
         status=cast(ReportStatus, status or ("OK" if result.is_valid else "ERRO")),
         mensagem=result.message,
     )
+
+
+def _validated_single_test_email(test_email: str) -> str:
+    emails, error = parse_email_list(test_email, required=True)
+    if error or len(emails) != 1:
+        raise ValueError("Informe um único e-mail de teste válido.")
+    return emails[0]
+
+
+def _logo_data_uri() -> str:
+    encoded = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import customtkinter as ctk
 
@@ -100,14 +100,26 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         self.test_email_entry.grid(row=0, column=1, sticky="ew", padx=8, pady=8)
         ctk.CTkButton(
             bottom,
+            text="Visualizar e-mail",
+            command=self._preview_email,
+        ).grid(row=0, column=3, padx=8, pady=8)
+        ctk.CTkButton(
+            bottom,
             text="Criar rascunhos no Outlook",
             command=self._create_drafts,
-        ).grid(row=0, column=3, padx=8, pady=8)
+        ).grid(row=0, column=4, padx=8, pady=8)
+        ctk.CTkButton(
+            bottom,
+            text="Enviar e-mails",
+            fg_color="#b42318",
+            hover_color="#8f1d14",
+            command=self._send_emails,
+        ).grid(row=0, column=5, padx=8, pady=8)
         ctk.CTkButton(
             bottom,
             text="Abrir pasta de relatórios",
             command=self._open_reports,
-        ).grid(row=0, column=4, padx=8, pady=8)
+        ).grid(row=0, column=6, padx=8, pady=8)
 
     def _select_file(self) -> None:
         filename = filedialog.askopenfilename(
@@ -189,6 +201,64 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         messagebox.showinfo(
             APP_NAME,
             f"{result.created_count} rascunhos criados. Relatório: {result.report_path}",
+        )
+
+    def _preview_email(self) -> None:
+        try:
+            preview_path = self.controller.write_preview_html(
+                test_mode=self.test_mode_var.get(),
+                test_email=self.test_email_entry.get().strip(),
+            )
+        except Exception as exc:
+            messagebox.showerror(APP_NAME, str(exc))
+            return
+        os.startfile(str(preview_path.resolve()))
+
+    def _send_emails(self) -> None:
+        valid_count = sum(1 for row in self.controller.last_validation if row.is_valid)
+        invalid_count = sum(1 for row in self.controller.last_validation if not row.is_valid)
+        if valid_count == 0:
+            messagebox.showwarning(APP_NAME, "Não há linhas válidas para enviar.")
+            return
+        if invalid_count:
+            messagebox.showerror(
+                APP_NAME,
+                f"Existem {invalid_count} linhas inválidas. Corrija a planilha antes de enviar.",
+            )
+            return
+
+        mode_text = "de TESTE" if self.test_mode_var.get() else "REAIS"
+        confirmed = messagebox.askyesno(
+            APP_NAME,
+            (
+                f"Serão enviados {valid_count} e-mails {mode_text} pelo Outlook.\n\n"
+                "Essa ação usa o botão Enviar do Outlook. Deseja continuar?"
+            ),
+        )
+        if not confirmed:
+            return
+
+        phrase = simpledialog.askstring(
+            APP_NAME,
+            f'Serão enviados {valid_count} e-mails {mode_text}. Digite "ENVIAR" para continuar:',
+            parent=self,
+        )
+        if phrase is None:
+            return
+
+        try:
+            result = self.controller.send_outlook_emails(
+                confirmation_phrase=phrase,
+                test_mode=self.test_mode_var.get(),
+                test_email=self.test_email_entry.get().strip(),
+            )
+        except Exception as exc:
+            messagebox.showerror(APP_NAME, str(exc))
+            return
+        self._populate_table(result.row_results)
+        messagebox.showinfo(
+            APP_NAME,
+            f"{result.sent_count} e-mails enviados. Relatório: {result.report_path}",
         )
 
     def _open_reports(self) -> None:

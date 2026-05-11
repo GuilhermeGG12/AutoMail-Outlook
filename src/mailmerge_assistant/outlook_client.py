@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from html import escape
 from pathlib import Path
+from typing import Any
 
 from mailmerge_assistant.models import EmailDraft
 
@@ -28,28 +29,56 @@ class OutlookClient:
 
     def create_draft(self, draft: EmailDraft) -> None:
         try:
-            outlook = self._win32_client.Dispatch("Outlook.Application")
-            mail = outlook.CreateItem(0)
-            mail.To = draft.to
-            mail.Subject = draft.subject
-            mail.BodyFormat = 2  # olFormatHTML
-            logo_src = f"cid:{LOGO_CONTENT_ID}" if LOGO_PATH.exists() else None
-            mail.HTMLBody = plain_text_to_html_email(draft.body, logo_src=logo_src)
-            if logo_src is not None:
-                logo = mail.Attachments.Add(str(LOGO_PATH))
-                logo.PropertyAccessor.SetProperty(
-                    "http://schemas.microsoft.com/mapi/proptag/0x3712001F",
-                    LOGO_CONTENT_ID,
-                )
-                logo.PropertyAccessor.SetProperty(
-                    "http://schemas.microsoft.com/mapi/proptag/0x7FFE000B",
-                    True,
-                )
+            mail = self._create_mail_item(draft)
             mail.Save()
         except Exception as exc:
             raise OutlookDraftError(
                 f"Não foi possível criar o rascunho da linha {draft.row_number} no Outlook."
             ) from exc
+
+    def send_email(self, draft: EmailDraft) -> None:
+        try:
+            mail = self._create_mail_item(draft)
+            mail.Send()
+        except Exception as exc:
+            raise OutlookDraftError(
+                f"Não foi possível enviar o e-mail da linha {draft.row_number} pelo Outlook."
+            ) from exc
+
+    def refresh_drafts_folder(self, *, max_items: int = 60) -> None:
+        try:
+            outlook = self._win32_client.Dispatch("Outlook.Application")
+            drafts = outlook.Session.GetDefaultFolder(16)
+            items = drafts.Items
+            items.Sort("[LastModificationTime]", True)
+            limit = min(max_items, int(items.Count))
+            for index in range(1, limit + 1):
+                item = items.Item(index)
+                _ = item.Subject
+                _ = item.To
+                _ = item.LastModificationTime
+        except Exception:
+            return
+
+    def _create_mail_item(self, draft: EmailDraft) -> Any:
+        outlook = self._win32_client.Dispatch("Outlook.Application")
+        mail = outlook.CreateItem(0)
+        mail.To = draft.to
+        mail.Subject = draft.subject
+        mail.BodyFormat = 2  # olFormatHTML
+        logo_src = f"cid:{LOGO_CONTENT_ID}" if LOGO_PATH.exists() else None
+        mail.HTMLBody = plain_text_to_html_email(draft.body, logo_src=logo_src)
+        if logo_src is not None:
+            logo = mail.Attachments.Add(str(LOGO_PATH))
+            logo.PropertyAccessor.SetProperty(
+                "http://schemas.microsoft.com/mapi/proptag/0x3712001F",
+                LOGO_CONTENT_ID,
+            )
+            logo.PropertyAccessor.SetProperty(
+                "http://schemas.microsoft.com/mapi/proptag/0x7FFE000B",
+                True,
+            )
+        return mail
 
 
 def plain_text_to_html_email(text: str, *, logo_src: str | None = None) -> str:

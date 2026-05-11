@@ -4,7 +4,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-ReportStatus = Literal["OK", "ERRO", "RASCUNHO_CRIADO", "IGNORADO"]
+ReportStatus = Literal[
+    "OK",
+    "ERRO",
+    "RASCUNHO_CRIADO",
+    "IGNORADO",
+    "ENVIADO",
+    "FALHA_ENVIO",
+]
 
 
 @dataclass(frozen=True)
@@ -61,6 +68,13 @@ class ValidationRunResult:
 class DraftCreationResult:
     row_results: list[RowValidationResult]
     created_count: int
+    report_path: Path
+
+
+@dataclass(frozen=True)
+class SendEmailsResult:
+    row_results: list[RowValidationResult]
+    sent_count: int
     report_path: Path
 
 
