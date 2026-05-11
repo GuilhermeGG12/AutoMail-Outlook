@@ -41,6 +41,8 @@ def test_create_draft_resolves_recipients_before_saving(tmp_path: Path) -> None:
     client.create_draft(_draft(tmp_path))
 
     mail = fake_win32.outlook.mail
+    assert [recipient.address for recipient in mail.Recipients.added] == ["cliente@email.com"]
+    assert [recipient.Type for recipient in mail.Recipients.added] == [1]
     assert mail.Recipients.resolve_all_called
     assert mail.Importance == 2
     assert mail.ReadReceiptRequested
@@ -62,10 +64,22 @@ class FakeRecipients:
     def __init__(self, resolve_result: bool) -> None:
         self.resolve_result = resolve_result
         self.resolve_all_called = False
+        self.added: list[FakeRecipient] = []
+
+    def Add(self, address: str) -> FakeRecipient:
+        recipient = FakeRecipient(address=address)
+        self.added.append(recipient)
+        return recipient
 
     def ResolveAll(self) -> bool:
         self.resolve_all_called = True
         return self.resolve_result
+
+
+class FakeRecipient:
+    def __init__(self, address: str) -> None:
+        self.address = address
+        self.Type = 0
 
 
 class FakeAttachments:

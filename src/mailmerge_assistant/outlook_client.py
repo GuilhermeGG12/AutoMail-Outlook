@@ -67,7 +67,9 @@ class OutlookClient:
     def _create_mail_item(self, draft: EmailDraft) -> Any:
         outlook = self._win32_client.Dispatch("Outlook.Application")
         mail = outlook.CreateItem(0)
-        mail.To = draft.to
+        for recipient_address in _recipient_addresses(draft.to):
+            recipient = mail.Recipients.Add(recipient_address)
+            recipient.Type = 1  # olTo
         if not mail.Recipients.ResolveAll():
             raise OutlookDraftError(
                 f'Não foi possível validar o destinatário "{draft.to}" no Outlook.'
@@ -146,3 +148,7 @@ def _render_inline_markup(text: str) -> str:
         last_index = match.end()
     pieces.append(escape(text[last_index:]))
     return "".join(pieces)
+
+
+def _recipient_addresses(to: str) -> list[str]:
+    return [address.strip() for address in to.split(";") if address.strip()]
