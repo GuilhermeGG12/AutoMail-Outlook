@@ -28,9 +28,11 @@ def test_plain_text_to_html_email_can_render_logo() -> None:
 
 
 def test_plain_text_to_html_email_renders_strong_markup_safely() -> None:
-    html = plain_text_to_html_email("Olá **João <teste>**")
+    html = plain_text_to_html_email("Olá **João <teste>**, *texto* e __pix__")
 
-    assert "<p>Olá <strong>João &lt;teste&gt;</strong></p>" in html
+    assert "Olá <strong>João &lt;teste&gt;</strong>" in html
+    assert "<em>texto</em>" in html
+    assert "<u>pix</u>" in html
 
 
 def test_create_draft_resolves_recipients_before_saving(tmp_path: Path) -> None:

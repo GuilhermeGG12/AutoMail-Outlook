@@ -17,6 +17,7 @@ from mailmerge_assistant.models import (
 )
 from mailmerge_assistant.outlook_client import LOGO_PATH, OutlookClient, plain_text_to_html_email
 from mailmerge_assistant.report_writer import write_report
+from mailmerge_assistant.template_reader import read_email_body_template
 from mailmerge_assistant.validators import parse_email_list
 
 SEND_CONFIRMATION_PHRASE = "ENVIAR"
@@ -33,9 +34,24 @@ class MailMergeController:
         self._outlook_client = outlook_client
         self._last_validation: list[RowValidationResult] = []
 
-    def validate_file(self, spreadsheet_path: str | Path) -> ValidationRunResult:
+    def validate_file(
+        self,
+        spreadsheet_path: str | Path,
+        *,
+        template_path: str | Path | None = None,
+    ) -> ValidationRunResult:
+        body_template = (
+            read_email_body_template(template_path) if template_path is not None else None
+        )
         workbook_data = read_clientes_workbook(spreadsheet_path)
-        results = [map_row_to_validation_result(row) for row in workbook_data.rows]
+        results = [
+            (
+                map_row_to_validation_result(row, body_template=body_template)
+                if body_template is not None
+                else map_row_to_validation_result(row)
+            )
+            for row in workbook_data.rows
+        ]
         self._last_validation = results
         report_path = write_report([_validation_to_report_row(result) for result in results])
         return ValidationRunResult(rows=results, report_path=report_path)

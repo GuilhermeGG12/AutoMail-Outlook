@@ -36,6 +36,17 @@ def test_map_row_combines_emails_and_generates_subject_body(tmp_path: Path) -> N
     assert result.draft.attachments == []
 
 
+def test_map_row_uses_custom_body_template(tmp_path: Path) -> None:
+    result = map_row_to_validation_result(
+        _row(tmp_path),
+        body_template="Olá **{Proprietário/Dirigente}**, valor {Valor fev26}",
+    )
+
+    assert result.is_valid
+    assert result.draft is not None
+    assert result.draft.body == "Olá **Márcio**, valor R$ 390,50"
+
+
 def test_map_row_does_not_require_attachment_column(tmp_path: Path) -> None:
     row = _row(tmp_path)
     row.values.pop("ArquivoAnexo")

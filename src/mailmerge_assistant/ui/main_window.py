@@ -16,6 +16,7 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         super().__init__()
         self.controller = controller or MailMergeController()
         self.selected_path: Path | None = None
+        self.selected_template_path: Path | None = None
         self.title(APP_NAME)
         self.geometry("1180x720")
         ctk.set_appearance_mode("light")
@@ -38,6 +39,15 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         ctk.CTkButton(top, text="Validar clientes", command=self._validate).grid(
             row=0, column=2, padx=8, pady=8
         )
+        ctk.CTkButton(top, text="Selecionar modelo", command=self._select_template).grid(
+            row=1, column=0, padx=8, pady=(0, 8)
+        )
+        self.template_label = ctk.CTkLabel(
+            top,
+            text="Modelo padrão do app",
+            anchor="w",
+        )
+        self.template_label.grid(row=1, column=1, columnspan=2, sticky="ew", padx=8, pady=(0, 8))
 
         self.summary_label = ctk.CTkLabel(
             self,
@@ -135,12 +145,28 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             self.selected_path = Path(filename)
             self.path_label.configure(text=str(self.selected_path))
 
+    def _select_template(self) -> None:
+        filename = filedialog.askopenfilename(
+            title="Selecionar modelo de e-mail",
+            filetypes=[
+                ("Modelos de e-mail", "*.docx *.txt"),
+                ("Word", "*.docx"),
+                ("Texto", "*.txt"),
+            ],
+        )
+        if filename:
+            self.selected_template_path = Path(filename)
+            self.template_label.configure(text=str(self.selected_template_path))
+
     def _validate(self) -> None:
         if self.selected_path is None:
             messagebox.showwarning(APP_NAME, "Selecione uma planilha antes de validar.")
             return
         try:
-            result = self.controller.validate_file(self.selected_path)
+            result = self.controller.validate_file(
+                self.selected_path,
+                template_path=self.selected_template_path,
+            )
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc))
             return

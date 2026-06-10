@@ -13,9 +13,13 @@ from mailmerge_assistant.validators import (
 )
 
 
-def map_row_to_validation_result(row: SpreadsheetRow) -> RowValidationResult:
+def map_row_to_validation_result(
+    row: SpreadsheetRow,
+    *,
+    body_template: str = EMAIL_BODY_TEMPLATE,
+) -> RowValidationResult:
     try:
-        draft = map_row_to_draft(row)
+        draft = map_row_to_draft(row, body_template=body_template)
     except ValueError as exc:
         return RowValidationResult(
             row=row, is_valid=False, message=f"Linha {row.row_number}: {exc}"
@@ -23,7 +27,11 @@ def map_row_to_validation_result(row: SpreadsheetRow) -> RowValidationResult:
     return RowValidationResult(row=row, is_valid=True, message="OK", draft=draft)
 
 
-def map_row_to_draft(row: SpreadsheetRow) -> EmailDraft:
+def map_row_to_draft(
+    row: SpreadsheetRow,
+    *,
+    body_template: str = EMAIL_BODY_TEMPLATE,
+) -> EmailDraft:
     values = row.values
     for field_name in REQUIRED_COLUMNS:
         error = validate_required_value(values.get(field_name), field_name)
@@ -49,7 +57,7 @@ def map_row_to_draft(row: SpreadsheetRow) -> EmailDraft:
     template_values = _template_values(values, valor)
     try:
         subject = render_template(EMAIL_SUBJECT_TEMPLATE, template_values).strip()
-        body = render_template(EMAIL_BODY_TEMPLATE, template_values).strip()
+        body = render_template(body_template, template_values).strip()
     except TemplateRenderError as exc:
         raise ValueError(str(exc)) from exc
     if not subject:

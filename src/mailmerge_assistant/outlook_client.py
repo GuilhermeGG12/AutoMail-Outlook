@@ -10,6 +10,13 @@ from mailmerge_assistant.models import EmailDraft
 LOGO_CONTENT_ID = "mailmerge-assistant-company-logo"
 LOGO_PATH = Path(__file__).with_name("assets") / "company_logo.jpeg"
 STRONG_MARKUP_RE = re.compile(r"\*\*(.+?)\*\*")
+ITALIC_MARKUP_RE = re.compile(r"\*(.+?)\*")
+UNDERLINE_MARKUP_RE = re.compile(r"__(.+?)__")
+INLINE_MARKUP_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (STRONG_MARKUP_RE, "strong"),
+    (UNDERLINE_MARKUP_RE, "u"),
+    (ITALIC_MARKUP_RE, "em"),
+)
 
 
 class OutlookDraftError(RuntimeError):
@@ -141,13 +148,28 @@ def plain_text_to_html_email(text: str, *, logo_src: str | None = None) -> str:
 
 def _render_inline_markup(text: str) -> str:
     pieces: list[str] = []
-    last_index = 0
-    for match in STRONG_MARKUP_RE.finditer(text):
-        pieces.append(escape(text[last_index : match.start()]))
-        pieces.append(f"<strong>{escape(match.group(1))}</strong>")
-        last_index = match.end()
-    pieces.append(escape(text[last_index:]))
+    index = 0
+    while index < len(text):
+        match_info = _next_markup(text, index)
+        if match_info is None:
+            pieces.append(escape(text[index:]))
+            break
+        match, tag = match_info
+        pieces.append(escape(text[index : match.start()]))
+        pieces.append(f"<{tag}>{escape(match.group(1))}</{tag}>")
+        index = match.end()
     return "".join(pieces)
+
+
+def _next_markup(text: str, start: int) -> tuple[re.Match[str], str] | None:
+    matches = [
+        (match, tag)
+        for pattern, tag in INLINE_MARKUP_PATTERNS
+        if (match := pattern.search(text, start)) is not None
+    ]
+    if not matches:
+        return None
+    return min(matches, key=lambda item: item[0].start())
 
 
 def _recipient_addresses(to: str) -> list[str]:
