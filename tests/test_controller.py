@@ -113,6 +113,15 @@ def test_controller_writes_preview_html(tmp_path: Path) -> None:
     assert "<html>" in preview_path.read_text(encoding="utf-8")
 
 
+def test_controller_refreshes_outlook_drafts() -> None:
+    fake_client = FakeOutlookClient()
+    controller = MailMergeController(outlook_client=fake_client)
+
+    controller.refresh_outlook_drafts()
+
+    assert fake_client.refreshed_max_items == 60
+
+
 def test_controller_blocks_send_when_any_row_is_invalid(tmp_path: Path) -> None:
     fake_client = FakeOutlookClient()
     controller = MailMergeController(outlook_client=fake_client)

@@ -177,6 +177,10 @@ class MailMergeController:
 
         raise ValueError("Não há linhas válidas para visualizar.")
 
+    def refresh_outlook_drafts(self) -> None:
+        client = self._outlook_client or OutlookClient()
+        client.refresh_drafts_folder(max_items=60)
+
     @property
     def last_validation(self) -> list[RowValidationResult]:
         return self._last_validation

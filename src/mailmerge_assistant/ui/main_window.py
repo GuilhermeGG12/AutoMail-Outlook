@@ -110,16 +110,21 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
         ).grid(row=0, column=4, padx=8, pady=8)
         ctk.CTkButton(
             bottom,
+            text="Atualizar rascunhos",
+            command=self._refresh_drafts,
+        ).grid(row=0, column=5, padx=8, pady=8)
+        ctk.CTkButton(
+            bottom,
             text="Enviar e-mails",
             fg_color="#b42318",
             hover_color="#8f1d14",
             command=self._send_emails,
-        ).grid(row=0, column=5, padx=8, pady=8)
+        ).grid(row=0, column=6, padx=8, pady=8)
         ctk.CTkButton(
             bottom,
             text="Abrir pasta de relatórios",
             command=self._open_reports,
-        ).grid(row=0, column=6, padx=8, pady=8)
+        ).grid(row=0, column=7, padx=8, pady=8)
 
     def _select_file(self) -> None:
         filename = filedialog.askopenfilename(
@@ -202,6 +207,14 @@ class MainWindow(ctk.CTk):  # type: ignore[misc]
             APP_NAME,
             f"{result.created_count} rascunhos criados. Relatório: {result.report_path}",
         )
+
+    def _refresh_drafts(self) -> None:
+        try:
+            self.controller.refresh_outlook_drafts()
+        except Exception as exc:
+            messagebox.showerror(APP_NAME, str(exc))
+            return
+        messagebox.showinfo(APP_NAME, "Pasta de rascunhos atualizada no Outlook.")
 
     def _preview_email(self) -> None:
         try:
